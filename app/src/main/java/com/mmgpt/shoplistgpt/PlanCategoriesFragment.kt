@@ -87,7 +87,8 @@ class PlanCategoriesFragment : Fragment() {
                     if (item?.isHeading == true) {
                         val index = position - 1
                         val viewPager = requireActivity().findViewById<ViewPager2>(R.id.viewPager)
-                        viewPager.currentItem = index + 1
+                        // Complete the jump before the remaining tap events are dispatched.
+                        viewPager.setCurrentItem(index + 1, false)
                         return true
                     }
                 }

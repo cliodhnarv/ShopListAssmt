@@ -47,7 +47,8 @@ class ShopCategoriesFragment : Fragment() {
                 val position = child?.let { binding.recyclerView.getChildAdapterPosition(it) } ?: RecyclerView.NO_POSITION
                 if (position != RecyclerView.NO_POSITION) {
                     val viewPager = requireActivity().findViewById<ViewPager2>(R.id.viewPager)
-                    viewPager.currentItem = position
+                    // Complete the jump before the remaining tap events are dispatched.
+                    viewPager.setCurrentItem(position, false)
                     return true
                 }
                 return super.onDoubleTap(e)

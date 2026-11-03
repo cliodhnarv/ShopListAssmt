@@ -37,7 +37,6 @@ class MainActivity : AppCompatActivity() {
     private var nextItemId = 0L
     private var nextCategoryId = 0L
     private var inPlanMode = false
-    private var touchStartX = 0f
 
     private val filePickerLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -93,14 +92,39 @@ class MainActivity : AppCompatActivity() {
         binding.viewPager.adapter = pagerAdapter
 
         val pagerRecyclerView = binding.viewPager.getChildAt(0) as RecyclerView
-        pagerRecyclerView.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    touchStartX = event.x
-                    false
+        var touchStartX: Float? = null
+        var touchStartY = 0f
+        var touchStartPage = -1
+        // Observe DOWN even when a category row consumes the touch. The pager's
+        // OnTouchListener can otherwise receive UP without the matching DOWN.
+        pagerRecyclerView.addOnItemTouchListener(object : RecyclerView.SimpleOnItemTouchListener() {
+            override fun onInterceptTouchEvent(rv: RecyclerView, event: MotionEvent): Boolean {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        touchStartX = event.rawX
+                        touchStartY = event.rawY
+                        touchStartPage = binding.viewPager.currentItem
+                    }
+                    MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_DOWN -> touchStartX = null
                 }
+                return false
+            }
+        })
+        pagerRecyclerView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
                 MotionEvent.ACTION_UP -> {
-                    val deltaX = event.x - touchStartX
+                    val startX = touchStartX
+                    touchStartX = null
+                    // A double-tap may already have selected a different page.
+                    // Only wrap an actual horizontal swipe on its original page.
+                    if (startX == null || touchStartPage != binding.viewPager.currentItem) {
+                        return@setOnTouchListener false
+                    }
+                    val deltaX = event.rawX - startX
+                    val deltaY = event.rawY - touchStartY
+                    if (kotlin.math.abs(deltaX) <= kotlin.math.abs(deltaY)) {
+                        return@setOnTouchListener false
+                    }
                     val threshold = 100
                     val lastIndex = pagerAdapter.itemCount - 1
                     when {
@@ -114,6 +138,10 @@ class MainActivity : AppCompatActivity() {
                         }
                         else -> false
                     }
+                }
+                MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_DOWN -> {
+                    touchStartX = null
+                    false
                 }
                 else -> false
             }
